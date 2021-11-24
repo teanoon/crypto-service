@@ -1,0 +1,21 @@
+{
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.completion.importOrder": [
+        "java",
+        "javax",
+        "com",
+        "io",
+        "lombok",
+        "net",
+        "org",
+        "reactor",
+        "redis",
+        "com.example",
+        "#",
+        "#com.example"
+    ],
+    "java.saveActions.organizeImports": true,
+    "cSpell.words": [
+        "timeframe"
+    ]
+}

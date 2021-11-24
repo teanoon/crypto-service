@@ -1,0 +1,3 @@
+crypto:
+  host: https://uat-api.3ona.co
+  path: /v2/public/
