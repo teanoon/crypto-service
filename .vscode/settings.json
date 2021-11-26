@@ -22,6 +22,8 @@
         "org.junit.jupiter.api.Assumptions.*",
         "org.junit.jupiter.api.DynamicContainer.*",
         "org.junit.jupiter.api.DynamicTest.*",
+        "org.hamcrest.MatcherAssert.*",
+        "org.hamcrest.Matchers.*",
         "org.mockito.Mockito.*",
         "org.mockito.ArgumentMatchers.*",
         "org.mockito.Answers.*",

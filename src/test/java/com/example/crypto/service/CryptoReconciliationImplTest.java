@@ -10,10 +10,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 
 import reactor.core.publisher.Flux;
 
-import com.example.crypto.client.CryptoClient;
+import com.example.crypto.client.CryptoService;
 import com.example.crypto.model.CandleStick;
 import com.example.crypto.model.Trade;
 import com.example.crypto.model.Trade.Side;
@@ -27,22 +28,16 @@ public class CryptoReconciliationImplTest {
 
     @Test
     public void reconciliateSuccess() {
-        reconciliation.reconciliate("BTC_USDT", "10s", 10).block();
+        reconciliation.reconciliate("BTC_USDT", "2s", 3).block();
     }
 
     @Configuration
+    @Import(CryptoReconciliationImpl.class)
     public static class TestConfiguration {
 
         @Bean
-        public CryptoReconciliation cryptoReconciliation(CryptoClient client) {
-            var reconciliation = new CryptoReconciliationImpl(client);
-            // reconciliation.requestInterval = Duration.ofMillis(1);
-            return reconciliation;
-        }
-
-        @Bean
-        public CryptoClient cryptoClient() {
-            return new CryptoClient() {
+        public CryptoService cryptoService() {
+            return new CryptoService() {
 
                 @Override
                 public Flux<CandleStick> getCandleSticks(String instrument, String intervalString) {

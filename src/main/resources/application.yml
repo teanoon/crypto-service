@@ -1,3 +1,23 @@
 crypto:
   host: https://uat-api.3ona.co
   path: /v2/public/
+reactive:
+  feign:
+    java11: true
+    cloud:
+      enabled: false
+    ribbon:
+      enabled: false
+    hystrix:
+      enabled: false
+    logger:
+      enabled: true
+---
+spring:
+  config:
+    activate:
+      on-profile:
+      - qa
+      - prod
+crypto:
+  host: https://api.crypto.com

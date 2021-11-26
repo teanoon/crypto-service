@@ -7,6 +7,6 @@ public class Response<T> {
 
     private int code;
     private String method;
-    private T result;
+    private DataCollection<T> result;
 
 }

@@ -20,7 +20,7 @@ import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
-import com.example.crypto.client.CryptoClient;
+import com.example.crypto.client.CryptoService;
 import com.example.crypto.model.CandleStick;
 import com.example.crypto.model.Trade;
 import com.example.crypto.util.CryptoUtil;
@@ -29,14 +29,14 @@ import com.example.crypto.util.CryptoUtil;
 @Service
 public class CryptoReconciliationImpl implements CryptoReconciliation {
 
-    private final CryptoClient client;
+    private final CryptoService cryptoService;
     private final Scheduler scheduler;
 
     @VisibleForTesting
     Duration requestInterval = Duration.ofSeconds(1);
 
-    public CryptoReconciliationImpl(CryptoClient client) {
-        this.client = client;
+    public CryptoReconciliationImpl(CryptoService cryptoService) {
+        this.cryptoService = cryptoService;
         scheduler = Schedulers.newBoundedElastic(10, 100, "fetch");
     }
 
@@ -48,7 +48,7 @@ public class CryptoReconciliationImpl implements CryptoReconciliation {
         var terminationSignal = Sinks.<Void>one();
         // collecting trades
         Flux.interval(requestInterval)
-            .flatMap(v -> client.getTrades(instrument))
+            .flatMap(v -> cryptoService.getTrades(instrument))
             .distinct(Trade::getId)
             .windowUntilChanged(trade -> (long) Math.floor(trade.getDate().getTime() / intervalInMillis))
             // skip the first and drop last one to take all completed periods
@@ -56,20 +56,20 @@ public class CryptoReconciliationImpl implements CryptoReconciliation {
             .flatMap(trades -> trades.reduce(
                 buildCandleStick(),
                 aggregateTrade(intervalInMillis)))
-            .doOnNext(t -> log.info("actual: {}", new Date(t.getTimestamp())))
+            .doOnNext(t -> log.info("actual: {}", t))
             .doOnNext(stick -> reconciliate(aggregator, stick))
-            .doOnComplete(() -> terminationSignal.tryEmitEmpty())
             .subscribeOn(scheduler)
             .subscribe();
         // collecting candle sticks
         Flux.interval(interval)
-            .flatMap(v -> client.getCandleSticks(instrument, intervalString))
+            .flatMap(v -> cryptoService.getCandleSticks(instrument, intervalString))
             .distinct(CandleStick::getTimestamp)
-            .doOnNext(t -> log.info("expected: {}", new Date(t.getTimestamp())))
+            .doOnNext(t -> log.info("expected: {}", t))
             .doOnNext(stick -> reconciliate(aggregator, stick))
+            .doOnComplete(() -> terminationSignal.tryEmitEmpty())
             .subscribeOn(scheduler)
             .subscribe();
-        return terminationSignal.asMono();
+        return terminationSignal.asMono().doOnSuccess(v -> log.info("reconciliation complete!"));
     }
 
     private void reconciliate(Map<Long, CandleStick> aggregator, CandleStick stick) {
