@@ -1,4 +1,4 @@
-package com.example.crypto.dto;
+package com.example.crypto.client.dto;
 
 import java.util.List;
 

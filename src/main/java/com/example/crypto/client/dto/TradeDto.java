@@ -1,4 +1,4 @@
-package com.example.crypto.dto;
+package com.example.crypto.client.dto;
 
 import java.math.BigDecimal;
 import java.util.Date;
