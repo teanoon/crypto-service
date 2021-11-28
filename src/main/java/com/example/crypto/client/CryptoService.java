@@ -8,13 +8,18 @@ import com.example.crypto.model.Trade;
 public interface CryptoService {
 
     /**
-     * Retrieves candlesticks (k-line data history) over a given period for an instrument (e.g. BTC_USDT)
+     * Retrieves candlesticks (k-line data history) over a given epoch for an instrument (e.g. BTC_USDT)
      *
      * @param instrument the instrument name, e.g. BTC_USDT, ETH_CRO, etc.
      * @param interval one of 1m 5m 15m 30m 1h 4h 6h 12h 1D 7D 14D 1M
+     * @param epochs the total number of candle sticks
      * @return a list of candle sticks sorting by time ascending
      */
-    Flux<CandleStick> getCandleSticks(String instrument, String interval);
+    Flux<CandleStick> getCandleSticks(String instrument, String interval, int epochs);
+
+    default Flux<CandleStick> getCandleSticks(String instrument, String interval) {
+        return getCandleSticks(instrument, interval, 3);
+    }
 
     /**
      * Fetches the public trades for a particular instrument recently.

@@ -20,6 +20,9 @@ import com.example.crypto.model.Trade;
 import com.example.crypto.model.Trade.Side;
 import com.example.crypto.util.CryptoUtil;
 
+import static java.util.concurrent.ThreadLocalRandom.current;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 @SpringBootTest(classes = CryptoReconciliationImplTest.TestConfiguration.class, webEnvironment = WebEnvironment.NONE)
 public class CryptoReconciliationImplTest {
 
@@ -28,7 +31,62 @@ public class CryptoReconciliationImplTest {
 
     @Test
     public void reconciliateSuccess() {
-        reconciliation.reconciliate("BTC_USDT", "2s", 3).block();
+        reconciliation.reconciliate("BTC_USDT", "2s", 5).block();
+    }
+
+    @Test
+    public void aggregateTradeSuccess() {
+        // given a new trade
+        var aggregation = ((CryptoReconciliationImpl) reconciliation).aggregateTrade(1L);
+        var actual = ((CryptoReconciliationImpl) reconciliation).buildCandleStick();
+        var trade = buildUnitTrade(BigDecimal.TEN);
+
+        // when aggregates
+        aggregation.apply(actual, trade);
+
+        // then the result matches
+        assertEquals(
+            new CandleStick(
+                actual.getTimestamp(),
+                BigDecimal.TEN, BigDecimal.TEN,
+                BigDecimal.TEN, BigDecimal.TEN,
+                BigDecimal.ONE),
+            actual);
+
+        // when add a biggest trade
+        var highestPrice = BigDecimal.valueOf(Integer.MAX_VALUE);
+        trade = buildUnitTrade(highestPrice);
+        aggregation.apply(actual, trade);
+
+        // then the result matches
+        assertEquals(
+            new CandleStick(
+                actual.getTimestamp(),
+                BigDecimal.TEN, highestPrice,
+                highestPrice, BigDecimal.TEN,
+                BigDecimal.valueOf(2)),
+            actual);
+
+        // when add a smallest trade
+        var lowestPrice = BigDecimal.valueOf(Integer.MIN_VALUE);
+        trade = buildUnitTrade(lowestPrice);
+        aggregation.apply(actual, trade);
+
+        // then the result matches
+        assertEquals(
+            new CandleStick(
+                actual.getTimestamp(),
+                BigDecimal.TEN, lowestPrice,
+                highestPrice, lowestPrice,
+                BigDecimal.valueOf(3)),
+            actual);
+    }
+
+    private Trade buildUnitTrade(BigDecimal price) {
+        return new Trade(
+            current().nextLong(1_000_000), "BTC_USDT", Side.BUY,
+            price, BigDecimal.ONE,
+            new Date());
     }
 
     @Configuration
@@ -40,15 +98,16 @@ public class CryptoReconciliationImplTest {
             return new CryptoService() {
 
                 @Override
-                public Flux<CandleStick> getCandleSticks(String instrument, String intervalString) {
+                public Flux<CandleStick> getCandleSticks(String instrument, String intervalString, int epochs) {
                     var interval = CryptoUtil.parseInterval(intervalString);
                     var intervalInMillis = interval.get(ChronoUnit.SECONDS) * 1000;
-                    var currentPeriodStart = (long) Math.floor(System.currentTimeMillis() / intervalInMillis) * intervalInMillis;
-                    return Flux.range(0, 3)
+                    var currentEpochStart = (long) Math.floor(System.currentTimeMillis() / intervalInMillis) * intervalInMillis;
+                    return Flux.range(0, 20)
                         .map(offset -> new CandleStick(
-                            currentPeriodStart + intervalInMillis * (offset - 2), BigDecimal.ONE, BigDecimal.valueOf(9),
-                            BigDecimal.valueOf(9), BigDecimal.ONE,
-                            BigDecimal.valueOf(10)));
+                            currentEpochStart + intervalInMillis * (offset - 19),
+                            BigDecimal.ZERO, BigDecimal.valueOf(9),
+                            BigDecimal.valueOf(9), BigDecimal.ZERO,
+                            BigDecimal.TEN));
                 }
 
                 @Override
@@ -59,7 +118,7 @@ public class CryptoReconciliationImplTest {
                             instrument,
                             Side.BUY,
                             BigDecimal.valueOf(value), BigDecimal.ONE,
-                            new Date()));
+                            new Date(System.currentTimeMillis() + value - 20)));
                 }
 
             };

@@ -15,7 +15,11 @@
             "name": "Launch Application",
             "request": "launch",
             "mainClass": "com.example.crypto.Application",
-            "projectName": "crypto-service"
+            "projectName": "crypto-service",
+            "env": {
+                "SPRING_PROFILES_ACTIVE": "qa"
+            },
+            "vmArgs": "-Dhttp.proxyHost=172.99.0.1 -Dhttps.proxyHost=172.99.0.1 -Dhttp.proxyPort=8118 -Dhttps.proxyPort=8118 -Djava.net.useSystemProxies=true"
         }
     ]
 }

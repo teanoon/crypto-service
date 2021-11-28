@@ -26,6 +26,7 @@ dependencies {
     implementation 'com.playtika.reactivefeign:feign-reactor-java11:3.1.1'
     implementation 'com.playtika.reactivefeign:feign-reactor-spring-configuration:3.1.1'
     implementation 'io.projectreactor:reactor-core'
+    implementation 'org.apache.commons:commons-collections4:4.4'
     implementation 'org.apache.commons:commons-lang3'
     implementation 'org.springframework.boot:spring-boot-starter-log4j2'
 

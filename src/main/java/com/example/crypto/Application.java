@@ -23,7 +23,7 @@ public class Application implements CommandLineRunner {
     public void run(String... args) throws Exception {
         reconciliation.reconciliate("BTC_USDT", "1m", 2)
             .doFinally(v -> System.exit(0))
-            .subscribe();
+            .block();
     }
 
     public static void main(String[] args) {
