@@ -50,7 +50,7 @@ public class CryptoReconciliationImplTest {
                 actual.getTimestamp(),
                 BigDecimal.TEN, BigDecimal.TEN,
                 BigDecimal.TEN, BigDecimal.TEN,
-                BigDecimal.ONE),
+                BigDecimal.ONE.setScale(6)),
             actual);
 
         // when add a biggest trade
@@ -64,7 +64,7 @@ public class CryptoReconciliationImplTest {
                 actual.getTimestamp(),
                 BigDecimal.TEN, highestPrice,
                 highestPrice, BigDecimal.TEN,
-                BigDecimal.valueOf(2)),
+                BigDecimal.valueOf(2).setScale(6)),
             actual);
 
         // when add a smallest trade
@@ -78,7 +78,7 @@ public class CryptoReconciliationImplTest {
                 actual.getTimestamp(),
                 BigDecimal.TEN, lowestPrice,
                 highestPrice, lowestPrice,
-                BigDecimal.valueOf(3)),
+                BigDecimal.valueOf(3).setScale(6)),
             actual);
     }
 

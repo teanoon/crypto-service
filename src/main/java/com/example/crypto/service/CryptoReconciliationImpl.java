@@ -68,11 +68,10 @@ public class CryptoReconciliationImpl implements CryptoReconciliation {
         if (first == null) {
             return;
         }
-        var date = new Date(first.getTimestamp());
         if (first.equals(stick)) {
-            log.info("Candle stick matches trades at {}", date);
+            log.info("Candle stick matches trades at {}", first.getTimestamp());
         } else {
-            log.error("Candle stick doesn't match trades at {}", date);
+            log.error("Candle stick doesn't match trades at {}", first.getTimestamp());
         }
         // disconnect from GC roots
         aggregator.remove(stick.getTimestamp());
