@@ -1,5 +1,7 @@
 package com.example.crypto.client;
 
+import java.util.Comparator;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Component;
@@ -28,17 +30,13 @@ public class CryptoServiceImpl implements CryptoService {
     }
 
     @Override
-    public Flux<CandleStick> getCandleSticks(String instrument, String interval) {
-        return getCandleSticks(instrument, interval, 3);
-    }
-
-    @Override
     public Flux<CandleStick> getCandleSticks(String instrument, String interval, int epochs) {
         return client.getCandleSticks(instrument, interval, epochs)
             .map(Response::getResult)
             // .onErrorReturn(new DataCollection<>(Collections.emptyList()))
             .flatMapIterable(DataCollection::getData)
             .map(CandleStickDto::build)
+            .sort(Comparator.comparing(CandleStick::getTimestamp))
             .subscribeOn(single);
     }
 
@@ -50,7 +48,8 @@ public class CryptoServiceImpl implements CryptoService {
             .doOnNext(result -> log.info("get batch {}", result.getData().size()))
             .flatMapIterable(DataCollection::getData)
             .map(TradeDto::build)
-            .subscribeOn(single);
+            .subscribeOn(single)
+            .sort(Comparator.comparing(Trade::getId));
     }
 
 }

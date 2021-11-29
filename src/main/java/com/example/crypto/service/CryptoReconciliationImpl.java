@@ -3,10 +3,10 @@ package com.example.crypto.service;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +27,7 @@ import com.example.crypto.util.CryptoUtil;
 public class CryptoReconciliationImpl implements CryptoReconciliation {
 
     private final CryptoService cryptoService;
-    private final Duration requestInterval = Duration.ofMillis(1100);
+    private final Duration requestInterval = Duration.ofMillis(2000);
 
     public CryptoReconciliationImpl(CryptoService cryptoService) {
         this.cryptoService = cryptoService;
@@ -37,29 +37,43 @@ public class CryptoReconciliationImpl implements CryptoReconciliation {
     public Mono<Void> reconciliate(String instrument, String intervalString, int epochCount) {
         var interval = CryptoUtil.parseInterval(intervalString);
         var intervalInMillis = interval.get(ChronoUnit.SECONDS) * 1000;
-        var epochEnd = epochEnd(new Date(), epochCount, intervalInMillis);
         var aggregator = new ConcurrentHashMap<Long, CandleStick>();
+        var canTerminate = new AtomicBoolean();
         var terminationSignal = Sinks.<Void>one();
-        return Flux.interval(requestInterval)
-            .flatMap(v -> cryptoService.getTrades(instrument))
+        Flux.interval(interval)
+            .flatMapSequential(v -> cryptoService.getCandleSticks(instrument, intervalString))
+            .distinct(CandleStick::getTimestamp)
+            .doOnNext(t -> log.info("expected: {}, {}", epochStart(new Date(t.getTimestamp()), intervalInMillis), t))
+            .doOnNext(stick -> reconciliate(aggregator, stick))
+            .doOnNext(v -> {
+                if (canTerminate.get()) {
+                    terminationSignal.tryEmitEmpty();
+                }
+            })
+            .subscribe();
+        Flux.interval(requestInterval)
+            .flatMapSequential(v -> cryptoService.getTrades(instrument))
             .distinct(Trade::getId)
-            .takeWhile(trade -> trade.getDate().getTime() < epochEnd)
-            .groupBy(trade -> epochStart(trade.getDate(), intervalInMillis))
-            // .sort(Comparator.comparing(GroupedFlux::key))
-            // skip the first and drop last one to take all completed epochs
-            // .skip(1).take(epochCount + 1).take(epochCount)
-            .flatMap(trades -> trades
-                .sort(Comparator.comparing(Trade::getDate))
+            .windowUntilChanged(trade -> epochStart(trade.getDate(), intervalInMillis))
+            // // skip the first and drop last one to take all completed epochs
+            .skip(1).take(epochCount + 1).take(epochCount)
+            .flatMap(batch -> batch
+                .doFirst(() -> log.info("new epoch"))
+                .doOnNext(trade -> log.info("{}", trade))
                 .reduce(buildCandleStick(), aggregateTrade(intervalInMillis)))
             .doOnNext(t -> log.info("actual: {}, {}", epochStart(new Date(t.getTimestamp()), intervalInMillis), t))
             .doOnNext(stick -> reconciliate(aggregator, stick))
-            .thenEmpty(cryptoService
-                .getCandleSticks(instrument, intervalString, epochCount + 2)
-                .doOnNext(t -> log.info("expected: {}, {}", epochStart(new Date(t.getTimestamp()), intervalInMillis), t))
-                .doOnNext(stick -> reconciliate(aggregator, stick))
-                .doOnComplete(() -> terminationSignal.tryEmitEmpty())
-                .then())
-            .then();
+            .last()
+            .doOnNext(stick -> {
+                if (aggregator.contains(stick.getTimestamp())) {
+                    canTerminate.set(true);
+                } else {
+                    terminationSignal.tryEmitEmpty();
+                }
+            })
+            .doFinally(v -> terminationSignal.tryEmitEmpty())
+            .subscribe();
+        return terminationSignal.asMono().doOnSuccess(v -> log.info("done"));
     }
 
     private void reconciliate(Map<Long, CandleStick> aggregator, CandleStick stick) {
@@ -103,10 +117,6 @@ public class CryptoReconciliationImpl implements CryptoReconciliation {
 
     private Long epochStart(Date date, Long intervalInMillis) {
         return Math.floorDiv(date.getTime(), intervalInMillis);
-    }
-
-    private Long epochEnd(Date date, int epochCount, Long intervalInMillis) {
-        return (epochStart(date, intervalInMillis) + epochCount + 1 + 1) * intervalInMillis;
     }
 
 }
